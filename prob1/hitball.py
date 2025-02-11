@@ -151,7 +151,7 @@ def generate_random_color():
     return mcolors.to_hex(np.random.rand(4))
 
 
-image_path = "./5goodballs.png"
+image_path = "./pics/5goodballs.png"
 image = cv2.imread(image_path)
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 blurred = cv2.GaussianBlur(gray, (1, 1), 2)

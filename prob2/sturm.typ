@@ -121,7 +121,7 @@
   and since eigenfunction of chebyshev's differential is same as chebyshev's polynomial we get the following result
 
   #figure(
-    image("./chebyshev.png")
+    image("./pics/chebyshev.png")
   )
 
 ]
@@ -221,7 +221,7 @@
   $
   after rk4 and rk2 calculations we follow same as in the first example from equations $(17) - (18)$. ad we get following results.
   #figure(
-    image("./examplesturm.png")
+    image("./pics/examplesturm.png")
   )
 ]
 == drawbacks

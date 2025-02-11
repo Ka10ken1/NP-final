@@ -30,7 +30,7 @@
 = Introduction
 
 #figure(
-image("./imgshooting.png")
+image("./pics/imgshooting.png")
 )
 
 #qs[
