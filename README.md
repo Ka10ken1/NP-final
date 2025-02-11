@@ -1,5 +1,5 @@
 # Problem 1
-[Description]('./prob1/hitball.py')
+[Description]('./prob1/hitball.pdf')
 
 # Problem 2
-[Description]('./prob2/sturm.py')
+[Description]('./prob2/sturm.pdf')
