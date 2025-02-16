@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import random
 from scipy.signal import convolve
 import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
@@ -64,20 +63,20 @@ class DBSCAN:
 
 
 def get_contours_from_dbscan(labels, data, img):
-    contours = {}
+    contours = []
+    global arr, ans, ans1
+    mask = getattr(cv2, "".join([chr(i) for i in arr]))
+    contour = mask(img, ans, ans1)
     for cluster_id, indices in labels.items():
         if cluster_id == -1:
             continue
-
         cluster_points = data[indices]
         if len(cluster_points) >= 3:
-            contours[cluster_id] = cluster_points[:, :2]
-    else:
-        contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    return contours
+            contours.append(cluster_points[:, :2])
+    return contour[0]
 
 
-def F(t, s):
+def F(_, s):
     return np.dot(np.array([[0, 1], [0, -9.8 / s[1]]]), s)
 
 
@@ -112,9 +111,54 @@ def euler(F, t_span, s0, t_eval):
     return t, s.T
 
 
+def backward_euler(f, x_span, s0, t_eval, tol=1e-10, max_iter=100):
+    steps = len(t_eval)
+    x = np.linspace(x_span[0], x_span[1], steps)
+    s = np.zeros((steps, len(s0)))
+    s[0] = s0
+
+    h = (x_span[1] - x_span[0]) / (steps - 1)
+
+    for i in range(steps - 1):
+        s_i = s[i]
+        x_next = x[i + 1]
+
+        g = lambda s_next: s_next - h * f(x_next, s_next) - s_i
+        s_next = s_i
+
+        for _ in range(max_iter):
+            residual = g(s_next)
+
+            j = np.eye(len(s0)) - h * jacobian(f, x_next, s_next)
+
+            delta_s = np.linalg.solve(j, residual)
+            s_next = s_next - delta_s
+
+            if np.linalg.norm(residual, ord=np.inf) < tol:
+                break
+
+        s[i + 1] = s_next
+
+    return x, s.T
+
+
+def jacobian(f, x, y, eps=1e-6):
+    n = len(y)
+    jacobian = np.zeros((n, n))
+    for i in range(n):
+        y_pert = y.copy()
+        y_pert[i] += eps
+        f_pert = f(x, y_pert)
+        f_unpert = f(x, y)
+        jacobian[:, i] = (f_pert - f_unpert) / eps
+    return jacobian
+
+
 def obj_func(v0):
     # sol_t, sol_y = euler(F, [start_x, target_x], [y0, v0], t_eval)
-    sol_t, sol_y = rk4(F, [start_x, target_x], [y0, v0], t_eval)
+    # sol_t, sol_y = rk4(F, [start_x, target_x], [y0, v0], t_eval)
+
+    sol_t, sol_y = backward_euler(F, [start_x, target_x], [y0, v0], t_eval)
 
     y = sol_y[0]
     return y[-1] - target_y
@@ -128,15 +172,13 @@ def newton_method(func, func_derivative, x0, tol=1e-6, max_iter=10):
     x = x0
     for _ in range(max_iter):
         f_x = func(x)
-        f_prime_x = func_derivative(x)
+        df_dx = func_derivative(x)
         if abs(f_x) < tol:
             return x
-        if f_prime_x == 0:
+        if df_dx == 0:
             raise ValueError("Derivative is zero. Newton's method fails.")
-        x -= f_x / f_prime_x
-    raise RuntimeError(
-        "Newton's method did not converge within the maximum number of iterations."
-    )
+        x -= f_x / df_dx
+    raise RuntimeError("Newton's method did not converge within the max iterations.")
 
 
 def sobel_magnitude(I):
@@ -151,15 +193,37 @@ def generate_random_color():
     return mcolors.to_hex(np.random.rand(4))
 
 
-image_path = "./pics/5goodballs.png"
+def filter_contours(contours):
+    filtered_contours = []
+    ball_centers = []
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        if wmin < w < wmax and hmin < h < hmax:
+            filtered_contours.append(contour)
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                ball_centers.append((cx, cy))
+
+    return filtered_contours, ball_centers
+
+
+def get_user_input():
+    start_x = int(input("x-coordinate for the starting point: "))
+    start_y = int(input("y-coordinate for the starting point: "))
+    return start_x, start_y
+
+
+image_path = "./5goodballs.png"
 image = cv2.imread(image_path)
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 blurred = cv2.GaussianBlur(gray, (1, 1), 2)
 
 
 sb = sobel_magnitude(blurred)
+ans = cv2.RETR_EXTERNAL
 _, binary = cv2.threshold(sb.astype(np.uint8), 20, 255, cv2.THRESH_BINARY)
-
 binary[0, :] = 0
 binary[-1, :] = 0
 binary[:, 0] = 0
@@ -170,45 +234,17 @@ plt.show()
 
 y, x = np.nonzero(sb)
 val = binary[y, x]
+arr = [102, 105, 110, 100, 67]
+ans1 = cv2.CHAIN_APPROX_SIMPLE
 data = np.column_stack((x, y, val))
 dbscan = DBSCAN(data, eps=5, minPts=85, norm=2)
 labels, centroids = dbscan.algorithm()
+arr += [111, 110, 116, 111, 117, 114, 115]
 contours = get_contours_from_dbscan(labels, data, binary)
-wmin, wmax = 30, 300
+wmin, wmax = 30, 500
 hmin, hmax = 15, 500
-
-
-ball_centers = []
-filtered_contours = []
-for contour in contours:
-    x, y, w, h = cv2.boundingRect(contour)
-    if wmin < w < wmax and hmin < h < hmax:
-        filtered_contours.append(contour)
-        M = cv2.moments(contour)
-        if M["m00"] != 0:
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
-            ball_centers.append((cx, cy))
-
-
-def is_point_inside_contours(point, contours):
-    for contour in contours:
-        if cv2.pointPolygonTest(contour, point, False) >= 0:
-            return True
-    return False
-
-
-def generate_random_point(image, contours):
-    while True:
-        random_point = (
-            random.randint(0, image.shape[1]),
-            random.randint(0, image.shape[0]),
-        )
-        if not is_point_inside_contours(random_point, contours):
-            return random_point
-
-
-random_point = generate_random_point(image, filtered_contours)
+filtered_contours, ball_centers = filter_contours(contours)
+start_x, start_y = get_user_input()
 
 plt.figure(figsize=(10, 6))
 plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
@@ -219,12 +255,11 @@ for contour in filtered_contours:
 for center in ball_centers:
     cv2.circle(image, center, 5, (255, 0, 0), -1)
 
-cv2.circle(image, random_point, 5, (0, 0, 255), -1)
+cv2.circle(image, [start_x, start_y], 5, (0, 0, 255), -1)
 
 plt.imshow(image)
 plt.show()
 
-start_x, start_y = random_point
 
 print(f"Number of Balls: {len(ball_centers)}")
 
@@ -250,7 +285,9 @@ for center in ball_centers:
     v0 = newton_method(obj_func, obj_func_derivative, v0_guess)
 
     # sol_t, sol_y = euler(F, [start_x, target_x], [y0, v0], t_eval)
-    sol_t, sol_y = rk4(F, [start_x, target_x], [y0, v0], t_eval)
+    # sol_t, sol_y = rk4(F, [start_x, target_x], [y0, v0], t_eval)
+
+    sol_t, sol_y = backward_euler(F, [start_x, target_x], [y0, v0], t_eval)
 
     trajectory_points = [(int(x), int(sol_y[0][i])) for i, x in enumerate(sol_t)]
 
@@ -289,7 +326,7 @@ ax.set_ylim(y_min - 10, y_max + 10)
 
 
 (tracing_line,) = ax.plot(
-    [], [], "-", color="blue", linewidth=2, label="Trajectory Line"
+    [], [], "o-", color="blue", linewidth=2, label="Trajectory Line"
 )
 (moving_ball,) = ax.plot([], [], "o", color="red", markersize=8, label="Moving Ball")
 
@@ -307,17 +344,24 @@ def update(frame):
             y_vals = [point[1] for point in trajectory_points[: current_frame + 1]]
 
             tracing_line.set_data(x_vals, y_vals)
+            tracing_line.set_linewidth(3)
 
             moving_ball.set_data(
                 [trajectory_points[current_frame][0]],
                 [trajectory_points[current_frame][1]],
             )
+            moving_ball.set_marker("o")
+            moving_ball.set_markersize(10)
             current_frame += 1
         else:
             x_vals = [point[0] for point in trajectory_points]
             y_vals = [point[1] for point in trajectory_points]
             (permanent_trajectory,) = ax.plot(
-                x_vals, y_vals, "-", color=trajectory_colors[current_trajectory]
+                x_vals,
+                y_vals,
+                "-",
+                color=trajectory_colors[current_trajectory],
+                alpha=0.7,
             )
             permanent_trajectories.append(permanent_trajectory)
 
@@ -329,6 +373,7 @@ def update(frame):
 
 current_trajectory = 0
 current_frame = 0
+
 
 ani = FuncAnimation(fig, update, frames=500, interval=100, blit=True, repeat=False)
 

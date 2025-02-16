@@ -3,6 +3,12 @@ import matplotlib.pyplot as plt
 
 # chebyshev's differential equation
 
+"""
+to test the chebyshev uncomment
+the equation and comment the example problem.
+there is also some stuff at the bottom that needs to be commented
+and uncommented for chebyshev
+"""
 # p = lambda x: -np.sqrt(1 - x**2)
 # q = lambda _: 0
 # w = lambda x: 1 / np.sqrt(1 - x**2)
@@ -31,6 +37,11 @@ def cos_taylor(x):
 
 def sin_taylor(x):
     return x - x**3 / 6 + x**5 / 120
+
+
+"""
+to test chebyshev comment this function aswell
+"""
 
 
 def f(x, Y, lambda_):
@@ -306,7 +317,7 @@ h = (b - a) / steps
 
 
 # for example
-lambda_initials = np.array([1, 2, 3, 4, 5, 7, 8, 10])
+lambda_initials = np.array([0, 2, 4, 7, 10, 16, 19, 22])
 
 
 roots = [
