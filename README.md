@@ -1,5 +1,5 @@
 # Problem 1
-[Description](./prob1/hitball.pdf)
+[Description](./balltrajectory/hitball.pdf)
 
 # Problem 2
-[Description](./prob2/sturm.pdf)
+[Description](./sturmliovuiile/sturm.pdf)
