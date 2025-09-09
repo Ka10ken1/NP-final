@@ -6,6 +6,6 @@
 
 # Problem 2
 
-![](./images/shooting_method.jpg)
+![](./images/sturm.jpg)
 
 [Description](./sturmliovuiile/sturm.pdf)
